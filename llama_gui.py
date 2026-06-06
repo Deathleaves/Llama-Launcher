@@ -189,7 +189,8 @@ def _make_popup_menu(hwnd: int) -> int:
     ctypes.windll.user32.GetCursorPos(pt)
     x, y = struct.unpack("ii", pt)
 
-    # Must bring our window to foreground for TrackPopupMenu to work
+    # Must bring our window to foreground so TrackPopupMenu can detect
+    # click-away events and dismiss the menu properly.
     ctypes.windll.user32.SetForegroundWindow(hwnd)
 
     hmenu = ctypes.windll.user32.CreatePopupMenu()
@@ -197,8 +198,16 @@ def _make_popup_menu(hwnd: int) -> int:
     ctypes.windll.user32.AppendMenuW(hmenu, 0x00000800, 0, "")  # separator
     ctypes.windll.user32.AppendMenuW(hmenu, 0x00000000, IDM_EXIT, "Exit")
 
-    flags = TPM_RIGHTBUTTON | TPM_RETURNCMD
+    # TPM_RIGHTBUTTON: menu tracks right mouse button
+    # TPM_RETURNCMD:   returns menu item id instead of sending WM_COMMAND
+    # TPM_BOTTOMALIGN: menu aligns below the click point
+    flags = TPM_RIGHTBUTTON | TPM_RETURNCMD | 0x0020  # TPM_BOTTOMALIGN
     cmd = ctypes.windll.user32.TrackPopupMenu(hmenu, flags, x, y, 0, hwnd, None)
+
+    # Standard pattern for tray popup menu: post a benign message so the
+    # window can properly handle deactivation after the menu closes.
+    ctypes.windll.user32.PostMessageW(hwnd, 0, 0, 0)
+
     ctypes.windll.user32.DestroyMenu(hmenu)
     return cmd
 
@@ -214,6 +223,7 @@ class WinTrayIcon:
         self._hicon = _pil_to_hicon(_make_tray_icon_image())
         self._running = False
         self._thread = None
+        self._icon_added = False  # guard against double removal
 
     def start(self) -> None:
         """Start the tray icon in a background thread."""
@@ -252,14 +262,18 @@ class WinTrayIcon:
         ilparam = int(lparam)
 
         if imsg == WM_TRAY:
-            if ilparam == WM_LBUTTONUP:
-                self._on_show()
-            elif ilparam == WM_RBUTTONUP:
-                cmd = _make_popup_menu(hwnd)
-                if cmd == IDM_SHOW:
+            try:
+                if ilparam == WM_LBUTTONUP:
                     self._on_show()
-                elif cmd == IDM_EXIT:
-                    self._on_exit()
+                elif ilparam == WM_RBUTTONUP:
+                    cmd = _make_popup_menu(hwnd)
+                    if cmd == IDM_SHOW:
+                        self._on_show()
+                    elif cmd == IDM_EXIT:
+                        self._on_exit()
+            except Exception:
+                import traceback
+                traceback.print_exc()
             return 0
         elif imsg == WM_CLOSE:
             ctypes.windll.user32.DestroyWindow(hwnd)
@@ -292,10 +306,13 @@ class WinTrayIcon:
         if not atom:
             return
 
-        # Create message-only window
+        # Create a hidden (not message-only) window so it can receive
+        # foreground activation when showing the popup context menu.
+        # Message-only windows (HWND_MESSAGE) cannot be made foreground,
+        # which breaks TrackPopupMenu click-away dismissal.
         hwnd = ctypes.windll.user32.CreateWindowExW(
             0, "LlamaLauncherTray", "", WS_OVERLAPPED,
-            0, 0, 0, 0, ctypes.wintypes.HWND(HWND_MESSAGE), 0, hinst, 0)
+            0, 0, 0, 0, 0, 0, hinst, 0)
 
         if not hwnd:
             ctypes.windll.user32.UnregisterClassW("LlamaLauncherTray", hinst)
@@ -347,6 +364,7 @@ class WinTrayIcon:
         guid_bytes = uuid.UUID(TRAY_GUID).bytes_le
         ctypes.memmove(nid.guidItem, guid_bytes, 16)
         ctypes.windll.shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(nid))
+        self._icon_added = True
 
     def _modify_icon(self) -> None:
         if not self._hwnd:
@@ -360,13 +378,14 @@ class WinTrayIcon:
         ctypes.windll.shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(nid))
 
     def _remove_icon(self) -> None:
-        if not self._hwnd:
+        if not self._hwnd or not self._icon_added:
             return
         nid = NOTIFYICONDATA()
         nid.cbSize = ctypes.sizeof(NOTIFYICONDATA)
         nid.hWnd = self._hwnd
         nid.uID = 1
         ctypes.windll.shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(nid))
+        self._icon_added = False
 
 # ── Constants ──────────────────────────────────────────────
 
@@ -1145,10 +1164,6 @@ class LlamaLauncher(tk.Tk):
 
     def _hide_to_tray(self) -> None:
         """Hide main window to system tray."""
-        if not self.process:
-            self._exit_app()
-            return
-
         # Ensure tray icon exists (it's created via after(500), might not be ready yet)
         if not self.tray_icon:
             self._create_tray_icon()
@@ -1181,13 +1196,31 @@ class LlamaLauncher(tk.Tk):
                 if action == "show":
                     self.deiconify()
                     self.lift()
-                    self.focus_force()
+                    # Use Win32 API to reliably bring window to foreground on Windows
+                    self._win32_foreground_restore()
                 elif action == "exit":
                     self._do_exit_app()
                     return
         except queue.Empty:
             pass
         self.after(100, self._poll_tray_actions)
+
+    def _win32_foreground_restore(self) -> None:
+        """Restore window and bring to foreground using Win32 API.
+
+        tkinter's focus_force() is unreliable on modern Windows (10/11)
+        because SetForegroundWindow restrictions prevent background apps
+        from stealing focus.  We use ShowWindow + SetForegroundWindow
+        which works here because the user initiated the action via the
+        tray icon that belongs to this process.
+        """
+        hwnd = self.winfo_id()
+        if not hwnd:
+            self.focus_force()
+            return
+        # SW_RESTORE = 9: activates and displays the window
+        ctypes.windll.user32.ShowWindow(hwnd, 9)
+        ctypes.windll.user32.SetForegroundWindow(hwnd)
 
     def _show_from_tray(self, _icon=None, _item=None) -> None:
         """Restore window from system tray. Called from tray callback."""
