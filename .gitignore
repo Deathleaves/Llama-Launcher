@@ -81,7 +81,9 @@ llama_config.json
 .memory/
 .claude.json
 CLAUDE.md
-.claude/
+
+# ── Git credentials (contains PAT/tokens) ──
+.git-credentials
 
 # ── Test artifacts ──
 _test_*
