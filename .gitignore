@@ -1,0 +1,96 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+*.manifest
+*.spec
+
+# ── Virtual environments ──
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# ── IDE & Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.settings/
+.project
+.classpath
+*.sublime-*
+
+# ── OS files ──
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── Image files (privacy) ──
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.ico
+*.webp
+
+# ── Log & temp files ──
+*.log
+*.tmp
+*.temp
+*.bak
+*.cache
+*.pid
+
+# ── Environment & secrets ──
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+credentials.json
+secrets.*
+token*
+*token*
+
+# ── User config with private paths ──
+llama_config.json
+
+# ── Claude / AI tools ──
+.claude/
+.memory/
+.claude.json
+CLAUDE.md
+.claude/
+
+# ── Test artifacts ──
+_test_*
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Distribution ──
+*.zip
+*.tar.gz
+*.7z
+*.rar
