@@ -1,91 +1,40 @@
-<div align="right">
+# 🦙 Llama Launcher — llama.cpp 桌面启动器
 
-[📖 中文版](README_CN.md)
+> ⚡ 可视化配置 · 实时彩色日志 · 系统托盘 · 硬件监控 · 告别命令行
 
-</div>
+---
 
-## 🦙 Llama Launcher
+## 🌐 选择语言 / Select Language
 
-A Windows desktop GUI launcher for [llama.cpp](https://github.com/ggerganov/llama.cpp) inference server. Provides visual configuration, real-time color-coded log viewing, system tray integration, and hardware monitoring — no more memorizing complex command-line arguments.
+| 🇨🇳 中文 | 🇬🇧 English |
+|----------|-------------|
+| [👉 查看中文版](README.zh-CN.md) | [👉 View English Version](README.en.md) |
+| 完整的中文项目文档，包括功能说明、安装指南、配置参考 | Full English documentation with features, setup guide, and reference |
 
-### ✨ Features
+---
 
-- **Visual Configuration** — All llama.cpp server parameters in a clean dark-themed UI. File pickers for server executable, model, and vision projection files. Numeric spinners and dropdowns for every setting.
-- **One-Click Start/Stop** — Launch or stop the server with a single button. Validation catches misconfiguration before launching.
-- **Real-Time Color-Coded Logs** — Server output streamed live with syntax-colored tags: purple for system events, red for errors, orange for warnings, blue for proxy messages, green for info.
-- **System Tray Integration** — Minimize to Windows notification area. Left-click to restore, right-click for menu. Zero taskbar clutter while running.
-- **Hardware Monitoring** — Live CPU, GPU (NVIDIA via nvidia-smi), and RAM usage displayed in the status bar.
-- **Persistent Config** — All settings saved as JSON, auto-loaded on next launch.
-- **Zero Console Windows** — Launched via `pythonw.exe`. No terminal window, no child console — only the GUI and tray icon.
+## ✨ 快速概览 / Quick Overview
 
-### 📋 Requirements
+| 🇨🇳 功能 | 🇬🇧 Feature |
+|----------|-------------|
+| 🎛️ 可视化配置 llama.cpp 所有参数 | Visual config for all llama.cpp server parameters |
+| ▶️ 一键启动 / 停止推理服务器 | One-click start/stop inference server |
+| 📜 实时彩色日志（紫/红/橙/蓝/绿） | Real-time color-coded log output |
+| 🔔 Windows 系统托盘常驻，任务栏无占用 | System tray — zero taskbar footprint |
+| 📊 CPU / GPU / 内存实时监控 | Live CPU, GPU (nvidia-smi), RAM monitoring |
+| 💾 配置 JSON 持久化，启动自动加载 | JSON config persistence with auto-load |
+| 🪟 无控制台窗口（pythonw 启动） | Zero console windows via pythonw.exe |
 
-- Windows 10/11 (64-bit)
-- Python 3.10+
-- [llama.cpp](https://github.com/ggerganov/llama.cpp) `llama-server.exe`
-- A GGUF format model file
+---
 
-### 🚀 Quick Start
+## 📁 文档 / Documents
 
-```bash
-# 1. Install dependencies
-pip install psutil Pillow
+- **[README.zh-CN.md](README.zh-CN.md)** — 中文版完整文档
+- **[README.en.md](README.en.md)** — English version (full documentation)
+- **[requirements.md](requirements.md)** — 需求文档 / Requirements spec
 
-# 2. Clone or download this project
-git clone https://github.com/Deathleaves/Llama-Launcher.git
-cd Llama-Launcher
+---
 
-# 3. Run (no console window)
-pythonw llama_gui.py
+## 📝 许可证 / License
 
-# Or double-click:
-llama_gui.bat
-```
-
-### 🎮 Usage
-
-1. **Configure paths** — Set your `llama-server.exe`, model `.gguf`, and optional vision MMProj file paths using Browse buttons.
-2. **Adjust parameters** — Tune threads, batch size, GPU layers, context length, port, temperature, and more.
-3. **Start the server** — Click `Start Server`. Watch the log panel for real-time output.
-4. **Hide to tray** — Close the window or click `Hide to Tray`. The server keeps running.
-5. **Restore** — Left-click the tray icon or right-click → `Show Window`.
-
-### 🏗️ Project Structure
-
-```
-Llama-Launcher/
-├── llama_gui.py        # Main application (GUI + process + log + tray + monitor)
-├── config.py           # Configuration dataclass (validation, JSON I/O, CLI builder)
-├── llama_gui.bat       # Windows launcher script (pythonw, UTF-8)
-└── requirements.md     # Full requirements document (Chinese)
-```
-
-### ⚙️ Configuration Reference
-
-| Section | Parameter | Default | Description |
-|---------|-----------|---------|-------------|
-| **File Paths** | Server Path | — | Path to `llama-server.exe` |
-| | Model Path | — | Path to `.gguf` model file |
-| | Vision MMProj | — | Multi-modal projection file (optional) |
-| **Performance** | Threads | 32 | CPU thread count |
-| | Batch Size | 2048 | Batch processing size |
-| | GPU Layers | 150 | Layers offloaded to GPU |
-| | Context Length | 131072 | Context window size |
-| **Server** | Port | 8081 | HTTP server port |
-| | Temperature | 0.8 | Sampling temperature |
-| | Model Alias | — | Display name for the model |
-| | Chat Template | chatml | Conversation template format |
-| | Log Level | INFO | Logging verbosity |
-| | Flash Attention | On | Enable flash attention |
-| | Lock Memory | On | Prevent memory swapping (mlock) |
-
-### 🔧 Tech Stack
-
-- **GUI**: Python `tkinter` (stdlib, no extra install)
-- **Tray**: Native Win32 API via `ctypes` (no external dependency)
-- **Hardware Monitor**: `psutil` + NVIDIA `nvidia-smi`
-- **Config**: `dataclasses` + JSON
-
-### 📄 License
-
-MIT License
+MIT

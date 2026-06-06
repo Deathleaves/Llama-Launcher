@@ -1,9 +1,3 @@
-<div align="right">
-
-[📖 English](README.md)
-
-</div>
-
 ## 🦙 Llama Launcher（驼羊启动器）
 
 一个 Windows 桌面 GUI 启动器，用于管理 [llama.cpp](https://github.com/ggerganov/llama.cpp) 推理服务器。提供可视化配置、实时彩色日志、系统托盘常驻、硬件监控——告别复杂的命令行参数。
@@ -85,7 +79,3 @@ Llama-Launcher/
 - **托盘**：通过 `ctypes` 调用原生 Win32 API（无外部依赖）
 - **硬件监控**：`psutil` + NVIDIA `nvidia-smi`
 - **配置**：`dataclasses` + JSON
-
-### 📄 许可证
-
-MIT License
