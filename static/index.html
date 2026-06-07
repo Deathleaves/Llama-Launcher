@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Llama Server Launcher</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   CSS Custom Properties — Catppuccin Mocha
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --base: #1e1e2e;
+  --mantle: #181825;
+  --crust: #11111b;
+  --surface0: #313244;
+  --surface1: #45475a;
+  --surface2: #585b70;
+  --text: #cdd6f4;
+  --subtext0: #a6adc8;
+  --subtext1: #bac2de;
+  --lavender: #cba6f7;
+  --red: #f38ba8;
+  --peach: #fab387;
+  --blue: #89b4fa;
+  --green: #a6e3a1;
+  --teal: #94e2d5;
+  --yellow: #f9e2af;
+
+  --font-mono: "Cascadia Code", "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --font-ui: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --transition: 180ms ease;
+  --transition-slow: 350ms ease;
+
+  --topbar-h: 48px;
+  --statusbar-h: 32px;
+  --config-min-w: 380px;
+  --config-max-w: 560px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Reset & Base
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--base);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle noise texture overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ═══════════════════════════════════════════════════════════
+   App Shell — CSS Grid
+   ═══════════════════════════════════════════════════════════ */
+#app {
+  display: grid;
+  grid-template-rows: var(--topbar-h) 1fr var(--statusbar-h);
+  grid-template-columns: 1fr;
+  height: 100vh;
+  position: relative;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Top Bar
+   ═══════════════════════════════════════════════════════════ */
+.topbar {
+  grid-row: 1;
+  background: var(--crust);
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 12px;
+  border-bottom: 1px solid var(--surface0);
+  z-index: 10;
+}
+
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+
+.topbar-logo .icon {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--lavender), var(--blue));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--crust);
+  font-weight: 900;
+  box-shadow: 0 0 12px rgba(203, 166, 247, 0.25);
+}
+
+.topbar-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+
+.topbar-spacer { flex: 1; }
+
+.topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: var(--surface0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--subtext0);
+  letter-spacing: 0.3px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background var(--transition), box-shadow var(--transition);
+}
+.status-dot.running {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green), 0 0 12px rgba(166, 227, 161, 0.3);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.status-dot.stopped {
+  background: var(--red);
+  box-shadow: 0 0 4px rgba(243, 139, 168, 0.2);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 6px var(--green), 0 0 12px rgba(166, 227, 161, 0.3); }
+  50% { box-shadow: 0 0 4px var(--green), 0 0 6px rgba(166, 227, 161, 0.15); }
+}
+
+.topbar-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--subtext0);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.topbar-btn:hover {
+  background: var(--surface1);
+  color: var(--text);
+  border-color: var(--surface2);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Main Content Area
+   ═══════════════════════════════════════════════════════════ */
+.main {
+  grid-row: 2;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Config Panel (Left)
+   ═══════════════════════════════════════════════════════════ */
+.config-panel {
+  width: 460px;
+  min-width: var(--config-min-w);
+  max-width: var(--config-max-w);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--base);
+  border-right: 1px solid var(--surface0);
+  transition: width var(--transition-slow);
+}
+
+.config-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 16px 12px;
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar styling */
+.config-scroll::-webkit-scrollbar,
+.log-output::-webkit-scrollbar { width: 5px; }
+.config-scroll::-webkit-scrollbar-track,
+.log-output::-webkit-scrollbar-track { background: transparent; }
+.config-scroll::-webkit-scrollbar-thumb,
+.log-output::-webkit-scrollbar-thumb {
+  background: var(--surface1);
+  border-radius: 3px;
+}
+.config-scroll::-webkit-scrollbar-thumb:hover,
+.log-output::-webkit-scrollbar-thumb:hover { background: var(--surface2); }
+
+/* ── Config Sections ──────────────────────────────────── */
+.config-section {
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  animation: section-in 0.4s ease backwards;
+}
+.config-section:nth-child(1) { animation-delay: 0.05s; }
+.config-section:nth-child(2) { animation-delay: 0.10s; }
+.config-section:nth-child(3) { animation-delay: 0.15s; }
+
+@keyframes section-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--subtext0);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--surface1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-title::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--lavender);
+}
+
+/* ── Form Rows ─────────────────────────────────────────── */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.form-label {
+  width: 106px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--subtext1);
+  user-select: none;
+}
+
+.form-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  background: var(--base);
+  color: var(--text);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.form-input:focus {
+  border-color: var(--lavender);
+  box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.12);
+}
+.form-input::placeholder { color: var(--surface2); }
+
+.form-input-sm {
+  max-width: 90px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.form-select {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--base);
+  color: var(--text);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a6adc8'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+.form-select:focus {
+  border-color: var(--lavender);
+  box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.12);
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-check input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--surface1);
+  border-radius: 3px;
+  background: var(--base);
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.form-check input[type="checkbox"]:checked {
+  background: var(--lavender);
+  border-color: var(--lavender);
+}
+.form-check input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--crust);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.form-check label {
+  font-size: 11.5px;
+  color: var(--subtext1);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ── Browse Button ──────────────────────────────────────── */
+.btn-browse {
+  padding: 6px 12px;
+  background: var(--surface1);
+  color: var(--text);
+  border: 1px solid var(--surface2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  letter-spacing: 0.2px;
+}
+.btn-browse:hover {
+  background: var(--surface2);
+  border-color: var(--subtext0);
+}
+
+/* ── Action Buttons ─────────────────────────────────────── */
+.config-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 0 0;
+}
+
+.btn {
+  padding: 9px 16px;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+.btn:hover::after { transform: translateX(100%); }
+
+.btn-save {
+  background: var(--surface0);
+  color: var(--subtext1);
+  border: 1px solid var(--surface1);
+}
+.btn-save:hover { background: var(--surface1); color: var(--text); border-color: var(--teal); }
+
+.btn-primary {
+  background: var(--green);
+  color: var(--crust);
+  box-shadow: 0 2px 8px rgba(166, 227, 161, 0.15);
+}
+.btn-primary:hover {
+  background: var(--teal);
+  box-shadow: 0 2px 14px rgba(148, 226, 213, 0.25);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-danger {
+  background: var(--red);
+  color: var(--crust);
+  box-shadow: 0 2px 8px rgba(243, 139, 168, 0.15);
+}
+.btn-danger:hover {
+  background: #e06c75;
+  box-shadow: 0 2px 14px rgba(243, 139, 168, 0.25);
+  transform: translateY(-1px);
+}
+.btn-danger:active { transform: translateY(0); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--subtext0);
+  border: 1px solid var(--surface1);
+}
+.btn-secondary:hover {
+  background: var(--surface0);
+  color: var(--text);
+  border-color: var(--surface2);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Resize Handle
+   ═══════════════════════════════════════════════════════════ */
+.resize-handle {
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background var(--transition);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+}
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 20px;
+  bottom: 20px;
+  width: 1px;
+  background: var(--surface0);
+  transition: background var(--transition);
+}
+.resize-handle:hover, .resize-handle:active {
+  background: rgba(203, 166, 247, 0.08);
+}
+.resize-handle:hover::after, .resize-handle:active::after {
+  background: var(--lavender);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Log Panel (Right)
+   ═══════════════════════════════════════════════════════════ */
+.log-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--mantle);
+  min-width: 300px;
+  overflow: hidden;
+}
+
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--surface0);
+  background: var(--crust);
+  flex-shrink: 0;
+}
+
+.log-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--subtext0);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+
+.log-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--surface2);
+  margin-left: 8px;
+}
+
+.log-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+  scroll-behavior: smooth;
+}
+
+.log-line {
+  padding: 1px 0;
+  animation: log-in 0.15s ease;
+}
+@keyframes log-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.log-line.system { color: var(--lavender); font-weight: 700; }
+.log-line.error  { color: var(--red); font-weight: 700; }
+.log-line.warn   { color: var(--peach); font-weight: 700; }
+.log-line.proxy  { color: var(--blue); font-weight: 700; }
+.log-line.info   { color: var(--green); }
+.log-line.cmd    { color: var(--teal); font-weight: 700; }
+
+.log-line.system::before { content: "SYS "; opacity: 0.5; font-weight: 400; }
+.log-line.error::before  { content: "ERR "; opacity: 0.5; font-weight: 400; }
+.log-line.warn::before   { content: "WRN "; opacity: 0.5; font-weight: 400; }
+.log-line.proxy::before  { content: "PRX "; opacity: 0.5; font-weight: 400; }
+.log-line.info::before   { content: "INF "; opacity: 0.5; font-weight: 400; }
+.log-line.cmd::before    { content: "CMD "; opacity: 0.5; font-weight: 400; }
+
+.log-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--surface1);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  user-select: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Status Bar
+   ═══════════════════════════════════════════════════════════ */
+.statusbar {
+  grid-row: 3;
+  background: var(--mantle);
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 28px;
+  border-top: 1px solid var(--surface0);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--subtext0);
+  letter-spacing: 0.3px;
+  user-select: none;
+}
+
+.statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusbar-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.statusbar-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--surface1);
+}
+
+.statusbar-right {
+  margin-left: auto;
+  font-size: 9.5px;
+  color: var(--surface2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statusbar-right a {
+  color: var(--surface2);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.statusbar-right a:hover { color: var(--subtext0); }
+
+/* ═══════════════════════════════════════════════════════════
+   Toast Notifications
+   ═══════════════════════════════════════════════════════════ */
+#toast-container {
+  position: fixed;
+  bottom: 40px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+}
+
+.toast {
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: all;
+  cursor: pointer;
+  max-width: 380px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+.toast.removing { animation: toast-out 0.25s ease forwards; }
+
+.toast-error {
+  background: var(--red);
+  color: var(--crust);
+  border-left: 3px solid #e06c75;
+}
+.toast-success {
+  background: var(--green);
+  color: var(--crust);
+  border-left: 3px solid var(--teal);
+}
+.toast-info {
+  background: var(--surface0);
+  color: var(--text);
+  border-left: 3px solid var(--lavender);
+  border: 1px solid var(--surface1);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(100%) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateX(100%) scale(0.95); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   File Browser Modal
+   ═══════════════════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.2s ease;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: var(--base);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius);
+  width: 620px;
+  max-height: 480px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  animation: modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface0);
+  background: var(--crust);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.modal-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+
+.modal-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--subtext0);
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+.modal-close:hover { background: var(--surface0); color: var(--red); }
+
+.modal-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--subtext1);
+  background: var(--surface0);
+  border-bottom: 1px solid var(--surface1);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.modal-breadcrumb span {
+  color: var(--blue);
+  cursor: pointer;
+  transition: color var(--transition);
+}
+.modal-breadcrumb span:hover { color: var(--lavender); text-decoration: underline; }
+.modal-breadcrumb .sep { color: var(--surface2); cursor: default; }
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.file-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+}
+.file-entry:hover { background: var(--surface0); }
+.file-entry.dir { color: var(--blue); }
+.file-entry .entry-icon { width: 18px; text-align: center; flex-shrink: 0; }
+.file-entry .entry-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-entry .entry-size { color: var(--surface2); font-size: 10px; flex-shrink: 0; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--surface0);
+  background: var(--crust);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Deerflow Signature
+   ═══════════════════════════════════════════════════════════ */
+.deerflow-signature {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  color: var(--surface2);
+  opacity: 0.5;
+  transition: opacity var(--transition);
+}
+.deerflow-signature:hover { opacity: 0.85; }
+.deerflow-signature a {
+  color: var(--subtext0);
+  text-decoration: none;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Loading Spinner
+   ═══════════════════════════════════════════════════════════ */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--surface1);
+  border-top-color: var(--lavender);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .config-panel { width: 340px; min-width: 300px; }
+  .form-label { width: 80px; font-size: 10.5px; }
+  .config-scroll { padding: 10px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- ═══════════ Top Bar ═══════════ -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="icon">LL</div>
+      <span class="topbar-title">Llama Server Launcher</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-status" id="topbarStatus">
+      <span class="status-dot stopped" id="statusDot"></span>
+      <span id="statusText">Server Stopped</span>
+    </div>
+  </header>
+
+  <!-- ═══════════ Main Content ═══════════ -->
+  <div class="main" id="mainContent">
+    <!-- Config Panel -->
+    <aside class="config-panel" id="configPanel">
+      <div class="config-scroll" id="configScroll">
+
+        <!-- File Paths -->
+        <div class="config-section">
+          <div class="section-title">File Paths</div>
+          <div class="form-row">
+            <span class="form-label">Server Path</span>
+            <input class="form-input" id="cfgServerPath" placeholder="llama-server.exe" spellcheck="false">
+            <button class="btn-browse" onclick="openFileBrowser('cfgServerPath')">Browse</button>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Model Path</span>
+            <input class="form-input" id="cfgModelPath" placeholder="model.gguf" spellcheck="false">
+            <button class="btn-browse" onclick="openFileBrowser('cfgModelPath')">Browse</button>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Vision MMProj</span>
+            <input class="form-input" id="cfgMmprojPath" placeholder="mmproj.gguf (optional)" spellcheck="false">
+            <button class="btn-browse" onclick="openFileBrowser('cfgMmprojPath')">Browse</button>
+          </div>
+        </div>
+
+        <!-- Performance -->
+        <div class="config-section">
+          <div class="section-title">Performance</div>
+          <div class="form-row">
+            <span class="form-label">Threads</span>
+            <input class="form-input form-input-sm" id="cfgThreads" type="number" min="1" max="256" value="32">
+          </div>
+          <div class="form-row">
+            <span class="form-label">Batch Size</span>
+            <input class="form-input form-input-sm" id="cfgBatchSize" type="number" min="1" max="32768" value="2048">
+          </div>
+          <div class="form-row">
+            <span class="form-label">GPU Layers</span>
+            <input class="form-input form-input-sm" id="cfgGpuLayers" type="number" min="0" max="999" value="150">
+          </div>
+          <div class="form-row">
+            <span class="form-label">Context Length</span>
+            <input class="form-input form-input-sm" id="cfgContextLen" type="number" min="256" max="1048576" value="131072">
+          </div>
+        </div>
+
+        <!-- Server -->
+        <div class="config-section">
+          <div class="section-title">Server</div>
+          <div class="form-row">
+            <span class="form-label">Port</span>
+            <input class="form-input form-input-sm" id="cfgPort" type="number" min="1024" max="65535" value="8081">
+          </div>
+          <div class="form-row">
+            <span class="form-label">Temperature</span>
+            <input class="form-input form-input-sm" id="cfgTemp" type="number" min="0" max="2" step="0.1" value="0.8">
+          </div>
+          <div class="form-row">
+            <span class="form-label">Model Alias</span>
+            <input class="form-input" id="cfgAlias" placeholder="Optional alias" spellcheck="false">
+          </div>
+          <div class="form-row">
+            <span class="form-label">Chat Template</span>
+            <select class="form-select" id="cfgTemplate">
+              <option value="chatml">chatml</option>
+              <option value="llama3">llama3</option>
+              <option value="llama2">llama2</option>
+              <option value="vicuna">vicuna</option>
+              <option value="alpaca">alpaca</option>
+              <option value="command-r">command-r</option>
+              <option value="deepseek">deepseek</option>
+              <option value="gemma">gemma</option>
+              <option value="mistral">mistral</option>
+              <option value="phi">phi</option>
+              <option value="zephyr">zephyr</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Log Level</span>
+            <select class="form-select" id="cfgLogLevel">
+              <option value="INFO">INFO</option>
+              <option value="DEBUG">DEBUG</option>
+              <option value="WARN">WARN</option>
+              <option value="ERROR">ERROR</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <span class="form-label"></span>
+            <div class="form-check">
+              <input type="checkbox" id="cfgFlashAttn" checked>
+              <label for="cfgFlashAttn">Flash Attention</label>
+            </div>
+          </div>
+          <div class="form-row">
+            <span class="form-label"></span>
+            <div class="form-check">
+              <input type="checkbox" id="cfgMlock" checked>
+              <label for="cfgMlock">Lock Memory (mlock)</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="config-actions">
+          <button class="btn btn-save" onclick="saveConfig()" id="btnSave">
+            <span>💾</span> Save Config
+          </button>
+          <button class="btn btn-primary" onclick="startServer()" id="btnStart">
+            <span>▶</span> Start Server
+          </button>
+          <button class="btn btn-secondary" onclick="clearLog()" id="btnClear">
+            <span>🗑</span> Clear Log
+          </button>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Resize Handle -->
+    <div class="resize-handle" id="resizeHandle"></div>
+
+    <!-- Log Panel -->
+    <section class="log-panel" id="logPanel">
+      <div class="log-header">
+        <div>
+          <span class="log-title">Server Log</span>
+          <span class="log-count" id="logCount">0 lines</span>
+        </div>
+        <div class="log-header-right">
+          <button class="btn-browse" onclick="clearLog()" style="font-size:10px;padding:4px 10px;">Clear</button>
+        </div>
+      </div>
+      <div class="log-output" id="logOutput">
+        <div class="log-empty" id="logEmpty">Waiting for server output...</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ═══════════ Status Bar ═══════════ -->
+  <footer class="statusbar">
+    <div class="statusbar-item">
+      <span class="status-dot stopped" id="statusbarDot"></span>
+      <span>Server:</span>
+      <span class="statusbar-value" id="statusbarState">Stopped</span>
+    </div>
+    <span class="statusbar-divider"></span>
+    <div class="statusbar-item">
+      <span>CPU</span>
+      <span class="statusbar-value" id="hwCpu">--%</span>
+    </div>
+    <div class="statusbar-item">
+      <span>GPU</span>
+      <span class="statusbar-value" id="hwGpu">--%</span>
+    </div>
+    <div class="statusbar-item">
+      <span>RAM</span>
+      <span class="statusbar-value" id="hwRam">--%</span>
+    </div>
+    <div class="statusbar-right">
+      <div class="deerflow-signature">
+        <span>✦</span>
+        <a href="https://deerflow.tech" target="_blank" rel="noopener">Deerflow</a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   Llama Server Launcher — Frontend Application
+   ═══════════════════════════════════════════════════════════ */
+
+// ── Constants ────────────────────────────────────────────
+const WS_URL = `ws://${location.host}/ws`;
+const API = '/api';
+
+// ── State ────────────────────────────────────────────────
+let ws = null;
+let reconnectTimer = null;
+let reconnectDelay = 1000;
+let serverRunning = false;
+let logLineCount = 0;
+let logBuffer = [];
+let rafId = null;
+
+// ── DOM refs ─────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const logOutput = $('logOutput');
+const logEmpty = $('logEmpty');
+const logCount = $('logCount');
+const btnStart = $('btnStart');
+const toastContainer = $('toastContainer');
+
+// ── WebSocket ────────────────────────────────────────────
+function connectWebSocket() {
+  if (ws && ws.readyState === WebSocket.OPEN) return;
+  try {
+    ws = new WebSocket(WS_URL);
+    ws.onopen = () => {
+      console.log('[WS] Connected');
+      reconnectDelay = 1000;
+      clearTimeout(reconnectTimer);
+    };
+    ws.onmessage = handleWsMessage;
+    ws.onclose = () => {
+      console.log('[WS] Disconnected, reconnecting...');
+      reconnectTimer = setTimeout(connectWebSocket, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+    };
+    ws.onerror = () => { ws.close(); };
+  } catch (e) {
+    reconnectTimer = setTimeout(connectWebSocket, 3000);
+  }
+}
+
+function handleWsMessage(event) {
+  try {
+    const msg = JSON.parse(event.data);
+    switch (msg.type) {
+      case 'log':
+        appendLog(msg.text, msg.tag);
+        break;
+      case 'hardware':
+        updateHardware(msg.cpu, msg.gpu, msg.ram);
+        break;
+      case 'server_status':
+        updateServerStatus(msg.running, msg.pid);
+        break;
+      case 'heartbeat':
+        break;
+    }
+  } catch (e) {
+    // Ignore malformed messages
+  }
+}
+
+// ── API Helpers ──────────────────────────────────────────
+async function apiGet(path) {
+  const res = await fetch(API + path);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function apiPut(path, body) {
+  const res = await fetch(API + path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  const res = await fetch(API + path, {
+    method: 'POST',
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return res.json();
+}
+
+// ── Config ───────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    const cfg = await apiGet('/config');
+    setVal('cfgServerPath', cfg.server_path || '');
+    setVal('cfgModelPath', cfg.model_path || '');
+    setVal('cfgMmprojPath', cfg.mmproj_path || '');
+    setVal('cfgThreads', cfg.threads);
+    setVal('cfgBatchSize', cfg.batch_size);
+    setVal('cfgGpuLayers', cfg.gpu_layers);
+    setVal('cfgContextLen', cfg.context_length);
+    setVal('cfgPort', cfg.port);
+    setVal('cfgTemp', cfg.temperature);
+    setVal('cfgAlias', cfg.model_alias || '');
+    setVal('cfgTemplate', cfg.chat_template || 'chatml');
+    setVal('cfgLogLevel', cfg.log_level || 'INFO');
+    setChecked('cfgFlashAttn', cfg.flash_attn !== false);
+    setChecked('cfgMlock', cfg.mlock !== false);
+  } catch (e) {
+    console.error('Failed to load config:', e);
+  }
+}
+
+function gatherConfig() {
+  return {
+    server_path: getVal('cfgServerPath'),
+    model_path: getVal('cfgModelPath'),
+    mmproj_path: getVal('cfgMmprojPath'),
+    threads: intVal('cfgThreads', 32),
+    batch_size: intVal('cfgBatchSize', 2048),
+    gpu_layers: intVal('cfgGpuLayers', 150),
+    context_length: intVal('cfgContextLen', 131072),
+    port: intVal('cfgPort', 8081),
+    temperature: floatVal('cfgTemp', 0.8),
+    model_alias: getVal('cfgAlias'),
+    chat_template: getVal('cfgTemplate'),
+    log_level: getVal('cfgLogLevel'),
+    flash_attn: isChecked('cfgFlashAttn'),
+    mlock: isChecked('cfgMlock'),
+  };
+}
+
+async function saveConfig() {
+  try {
+    const cfg = gatherConfig();
+    const res = await apiPut('/config', cfg);
+    if (res.ok) {
+      showToast('Configuration saved', 'success');
+    } else {
+      showToast((res.errors || ['Unknown error']).join('\n'), 'error');
+    }
+  } catch (e) {
+    showToast('Failed to save config: ' + e.message, 'error');
+  }
+}
+
+// ── Server Control ──────────────────────────────────────
+async function startServer() {
+  if (serverRunning) {
+    await stopServer();
+    return;
+  }
+
+  // Save config first
+  try {
+    const cfg = gatherConfig();
+    const saveRes = await apiPut('/config', cfg);
+    if (!saveRes.ok && saveRes.errors) {
+      showToast('Config errors:\n' + saveRes.errors.join('\n'), 'error');
+      return;
+    }
+  } catch (e) {
+    showToast('Failed to save config: ' + e.message, 'error');
+    return;
+  }
+
+  btnStart.disabled = true;
+  btnStart.innerHTML = '<span class="spinner"></span> Starting...';
+
+  try {
+    const res = await apiPost('/server/start');
+    if (res.ok) {
+      updateServerStatus(true, res.pid);
+      showToast(`Server started (PID: ${res.pid})`, 'success');
+    } else {
+      showToast(res.error || 'Failed to start server', 'error');
+      btnStart.disabled = false;
+      setStartButton(false);
+    }
+  } catch (e) {
+    showToast('Failed to start server: ' + e.message, 'error');
+    btnStart.disabled = false;
+    setStartButton(false);
+  }
+}
+
+async function stopServer() {
+  btnStart.disabled = true;
+  btnStart.innerHTML = '<span class="spinner"></span> Stopping...';
+
+  try {
+    const res = await apiPost('/server/stop');
+    if (res.ok) {
+      updateServerStatus(false);
+    }
+  } catch (e) {
+    showToast('Failed to stop server: ' + e.message, 'error');
+  }
+
+  btnStart.disabled = false;
+  setStartButton(false);
+}
+
+function updateServerStatus(running, pid) {
+  serverRunning = running;
+  setStartButton(running);
+
+  // Status bar
+  const dot = $('statusbarDot');
+  const state = $('statusbarState');
+  if (running) {
+    dot.className = 'status-dot running';
+    state.textContent = `Running (PID: ${pid || '?'})`;
+    state.style.color = 'var(--green)';
+  } else {
+    dot.className = 'status-dot stopped';
+    state.textContent = 'Stopped';
+    state.style.color = '';
+  }
+
+  // Top bar
+  const topDot = $('statusDot');
+  const topText = $('statusText');
+  if (running) {
+    topDot.className = 'status-dot running';
+    topText.textContent = `Server Running (PID: ${pid || '?'})`;
+  } else {
+    topDot.className = 'status-dot stopped';
+    topText.textContent = 'Server Stopped';
+  }
+}
+
+function setStartButton(running) {
+  if (running) {
+    btnStart.className = 'btn btn-danger';
+    btnStart.innerHTML = '<span>⏹</span> Stop Server';
+  } else {
+    btnStart.className = 'btn btn-primary';
+    btnStart.innerHTML = '<span>▶</span> Start Server';
+  }
+  btnStart.disabled = false;
+}
+
+// ── Log Management ──────────────────────────────────────
+function flushLogBuffer() {
+  if (logBuffer.length === 0) { rafId = null; return; }
+
+  const fragment = document.createDocumentFragment();
+  for (const { text, tag } of logBuffer) {
+    const div = document.createElement('div');
+    div.className = `log-line ${tag}`;
+    div.textContent = text;
+    fragment.appendChild(div);
+  }
+  logOutput.appendChild(fragment);
+  logBuffer = [];
+  rafId = null;
+  logLineCount += logBuffer.length;
+
+  // Remove empty placeholder
+  if (logEmpty) logEmpty.style.display = 'none';
+
+  // Auto-scroll
+  logOutput.scrollTop = logOutput.scrollHeight;
+
+  // Update count
+  logCount.textContent = `${logOutput.querySelectorAll('.log-line').length} lines`;
+}
+
+function appendLog(text, tag) {
+  logBuffer.push({ text, tag });
+  if (!rafId) {
+    rafId = requestAnimationFrame(flushLogBuffer);
+  }
+}
+
+function clearLog() {
+  logOutput.innerHTML = '<div class="log-empty" id="logEmpty">Log cleared</div>';
+  logBuffer = [];
+  logLineCount = 0;
+  logCount.textContent = '0 lines';
+  // Re-attach empty ref
+  const el = logOutput.querySelector('.log-empty');
+  if (el) el.id = 'logEmpty';
+}
+
+// ── Hardware Display ────────────────────────────────────
+function updateHardware(cpu, gpu, ram) {
+  $('hwCpu').textContent = `${cpu}%`;
+  $('hwGpu').textContent = gpu;
+  $('hwRam').textContent = `${ram}%`;
+}
+
+// ── File Browser Modal ──────────────────────────────────
+let fileBrowserTarget = null;
+
+async function openFileBrowser(targetInputId) {
+  fileBrowserTarget = targetInputId;
+  const path = getVal(targetInputId) || '';
+  const dir = path && !path.endsWith('\\') && !path.endsWith('/')
+    ? path.substring(0, Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/')) + 1)
+    : path;
+
+  // Get directory
+  let browsePath = '';
+  if (dir && dir.length >= 2) {
+    // Extract directory from path
+    const sep = Math.max(dir.lastIndexOf('\\'), dir.lastIndexOf('/'));
+    browsePath = sep >= 0 ? dir.substring(0, sep + 1) : dir;
+  }
+
+  showFileModal(browsePath);
+}
+
+async function showFileModal(path) {
+  try {
+    const url = API + '/files/browse' + (path ? `?path=${encodeURIComponent(path)}` : '');
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.error) {
+      showToast(data.error, 'error');
+      return;
+    }
+
+    renderFileModal(data);
+  } catch (e) {
+    showToast('Failed to browse files: ' + e.message, 'error');
+  }
+}
+
+function renderFileModal(data) {
+  // Remove existing modal
+  const existing = document.querySelector('.modal-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  // Breadcrumb
+  let breadcrumb = '<span onclick="showFileModal(\'\')">📁 Root</span>';
+  if (data.path) {
+    const parts = data.path.split(/[\\\/]/).filter(Boolean);
+    let acc = '';
+    for (let i = 0; i < parts.length; i++) {
+      acc += parts[i] + '\\';
+      breadcrumb += ` <span class="sep">›</span> <span onclick="showFileModal('${escapeHtml(acc)}')">${escapeHtml(parts[i])}</span>`;
+    }
+  }
+
+  // Entries (dirs first, then files)
+  const dirs = data.entries.filter(e => e.type === 'dir');
+  const files = data.entries.filter(e => e.type === 'file');
+  const sorted = [...dirs, ...files];
+
+  let entriesHtml = '';
+  for (const entry of sorted) {
+    const icon = entry.type === 'dir' ? '📁' : '📄';
+    const cls = entry.type === 'dir' ? 'dir' : '';
+    const size = entry.size != null ? formatSize(entry.size) : '';
+    const onclick = entry.type === 'dir'
+      ? `showFileModal('${escapeHtml(entry.path)}')`
+      : `selectFile('${escapeHtml(entry.path)}')`;
+    entriesHtml += `
+      <div class="file-entry ${cls}" onclick="${onclick}">
+        <span class="entry-icon">${icon}</span>
+        <span class="entry-name">${escapeHtml(entry.name)}</span>
+        <span class="entry-size">${size}</span>
+      </div>`;
+  }
+
+  if (sorted.length === 0) {
+    entriesHtml = '<div style="padding:20px;text-align:center;color:var(--surface2);">Empty directory</div>';
+  }
+
+  overlay.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">Browse Files</span>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+      </div>
+      <div class="modal-breadcrumb">${breadcrumb}</div>
+      <div class="modal-body">${entriesHtml}</div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+}
+
+function selectFile(path) {
+  if (fileBrowserTarget) {
+    setVal(fileBrowserTarget, path);
+  }
+  const modal = document.querySelector('.modal-overlay');
+  if (modal) modal.remove();
+  fileBrowserTarget = null;
+}
+
+function formatSize(bytes) {
+  if (!bytes || bytes === 0) return '';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  let size = bytes;
+  while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+  return `${size.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Toast Notifications ─────────────────────────────────
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toast.onclick = () => {
+    toast.classList.add('removing');
+    setTimeout(() => toast.remove(), 250);
+  };
+  toastContainer.appendChild(toast);
+
+  // Auto-remove
+  const duration = type === 'error' ? 8000 : 3500;
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.classList.add('removing');
+      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 250);
+    }
+  }, duration);
+}
+
+// ── UI Helpers ──────────────────────────────────────────
+function getVal(id) { return $(id)?.value || ''; }
+function setVal(id, val) { const el = $(id); if (el) el.value = val ?? ''; }
+function intVal(id, fallback) { const v = parseInt(getVal(id)); return isNaN(v) ? fallback : v; }
+function floatVal(id, fallback) { const v = parseFloat(getVal(id)); return isNaN(v) ? fallback : v; }
+function isChecked(id) { return $(id)?.checked || false; }
+function setChecked(id, val) { const el = $(id); if (el) el.checked = val; }
+
+// ── Resize Handle ───────────────────────────────────────
+function initResizeHandle() {
+  const handle = $('resizeHandle');
+  const panel = $('configPanel');
+  let isResizing = false;
+  let startX, startWidth;
+
+  handle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    startX = e.clientX;
+    startWidth = panel.offsetWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const delta = e.clientX - startX;
+    const newWidth = Math.max(340, Math.min(700, startWidth + delta));
+    panel.style.width = newWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+}
+
+// ── Keyboard Shortcuts ──────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    saveConfig();
+  }
+});
+
+// ── Init ────────────────────────────────────────────────
+async function init() {
+  connectWebSocket();
+  await loadConfig();
+  initResizeHandle();
+
+  // Get initial server status
+  try {
+    const status = await apiGet('/server/status');
+    updateServerStatus(status.running, status.pid);
+  } catch (e) { /* ignore */ }
+
+  // Get initial hardware snapshot
+  try {
+    const hw = await apiGet('/hardware');
+    updateHardware(hw.cpu, hw.gpu, hw.ram);
+  } catch (e) { /* ignore */ }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

@@ -1,4 +1,3 @@
 @echo off
 cd /d "%~dp0"
 start /min python.exe "%~dp0server.py" --port 8083
-:: Fallback: start /min python.exe "%~dp0llama_gui_tkinter.py"
