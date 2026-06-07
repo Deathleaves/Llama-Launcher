@@ -1,6 +1,6 @@
 # 🦙 Llama Launcher — llama.cpp 桌面启动器
 
-> ⚡ 可视化配置 · 实时彩色日志 · 系统托盘 · 硬件监控 · 告别命令行
+> ⚡ Web UI · 可视化配置 · 实时彩色日志 · 系统托盘 · 硬件监控 · 告别命令行
 
 ---
 
@@ -17,13 +17,14 @@
 
 | 🇨🇳 功能 | 🇬🇧 Feature |
 |----------|-------------|
+| 🌐 浏览器 Web UI（FastAPI + HTML/CSS） | Browser-based Web UI (FastAPI + HTML/CSS) |
 | 🎛️ 可视化配置 llama.cpp 所有参数 | Visual config for all llama.cpp server parameters |
 | ▶️ 一键启动 / 停止推理服务器 | One-click start/stop inference server |
-| 📜 实时彩色日志（紫/红/橙/蓝/绿） | Real-time color-coded log output |
-| 🔔 Windows 系统托盘常驻，任务栏无占用 | System tray — zero taskbar footprint |
+| 📜 实时 WebSocket 彩色日志 | Real-time WebSocket color-coded log streaming |
+| 🔔 Windows 系统托盘常驻 | System tray — zero taskbar footprint |
 | 📊 CPU / GPU / 内存实时监控 | Live CPU, GPU (nvidia-smi), RAM monitoring |
 | 💾 配置 JSON 持久化，启动自动加载 | JSON config persistence with auto-load |
-| 🪟 无控制台窗口（pythonw 启动） | Zero console windows via pythonw.exe |
+| 🪟 双击 bat 静默启动 | Double-click .bat for silent launch |
 
 ---
 
